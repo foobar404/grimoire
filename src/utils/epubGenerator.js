@@ -2,141 +2,205 @@ import JSZip from 'jszip'
 
 // Generate EPUB file
 export const generateEPUB = async (book, styles) => {
-  const zip = new JSZip()
+  try {
+    console.log('Starting EPUB generation...', { book, styles })
+    
+    // Validate required data
+    if (!book || !book.title || !book.author || !book.pages || book.pages.length === 0) {
+      throw new Error('Missing required book data (title, author, or pages)')
+    }
 
-  // EPUB structure
-  zip.file('mimetype', 'application/epub+zip')
+    const zip = new JSZip()
 
-  // META-INF folder
-  const metaInf = zip.folder('META-INF')
-  metaInf.file('container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+    // EPUB structure
+    zip.file('mimetype', 'application/epub+zip')
+
+    // META-INF folder
+    const metaInf = zip.folder('META-INF')
+    metaInf.file('container.xml', `<?xml version="1.0" encoding="UTF-8"?>
 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
   <rootfiles>
     <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
   </rootfiles>
 </container>`)
 
-  // OEBPS folder
-  const oebps = zip.folder('OEBPS')
+    // OEBPS folder
+    const oebps = zip.folder('OEBPS')
 
-  // Generate CSS
-  const css = generateCSS(styles)
-  oebps.file('styles.css', css)
+    // Generate CSS
+    const css = generateCSS(styles)
+    oebps.file('styles.css', css)
 
-  // Generate content.opf (package file)
-  const contentOpf = generateContentOpf(book)
-  oebps.file('content.opf', contentOpf)
+    // Generate content.opf (package file)
+    const contentOpf = generateContentOpf(book)
+    oebps.file('content.opf', contentOpf)
 
-  // Generate toc.ncx (navigation file for EPUB 2.0 compatibility)
-  const tocNcx = generateTocNcx(book)
-  oebps.file('toc.ncx', tocNcx)
+    // Generate toc.ncx (navigation file for EPUB 2.0 compatibility)
+    const tocNcx = generateTocNcx(book)
+    oebps.file('toc.ncx', tocNcx)
 
-  // Generate nav.xhtml (EPUB 3.0 navigation document)
-  const navHtml = generateNavDocument(book)
-  oebps.file('nav.xhtml', navHtml)
+    // Generate nav.xhtml (EPUB 3.0 navigation document)
+    const navHtml = generateNavDocument(book)
+    oebps.file('nav.xhtml', navHtml)
 
-  // Add cover image if provided
-  if (book.coverImage) {
-    const coverImageData = book.coverImage.split(',')[1] // Remove data:image/jpeg;base64, prefix
-    const extension = book.coverImage.includes('png') ? 'png' : 'jpg'
-    oebps.file(`cover.${extension}`, coverImageData, { base64: true })
+    // Add cover image if provided
+    if (book.coverImage) {
+      try {
+        const coverImageData = book.coverImage.split(',')[1] // Remove data:image/jpeg;base64, prefix
+        const extension = book.coverImage.includes('png') ? 'png' : 'jpg'
+        oebps.file(`cover.${extension}`, coverImageData, { base64: true })
+      } catch (error) {
+        console.warn('Failed to add cover image:', error)
+      }
+    }
+
+    // Generate title page
+    const titlePageHtml = generateTitlePage(book, styles)
+    oebps.file('title.xhtml', titlePageHtml)
+
+    // Generate copyright page (required by Amazon KDP)
+    const copyrightPageHtml = generateCopyrightPage(book)
+    oebps.file('copyright.xhtml', copyrightPageHtml)
+
+    // Generate table of contents page
+    const tocPageHtml = generateTocPage(book, styles)
+    oebps.file('toc.xhtml', tocPageHtml)    // Generate chapter files
+    book.pages.forEach((page, index) => {
+      try {
+        const pageHtml = generatePageHtml(page, styles, index + 1)
+        oebps.file(`chapter${index + 1}.xhtml`, pageHtml)
+      } catch (error) {
+        console.error(`Failed to generate chapter ${index + 1}:`, error)
+        throw new Error(`Failed to generate chapter ${index + 1}: ${error.message}`)
+      }
+    })
+
+    console.log('Generating EPUB blob...')
+    
+    // Generate and download the EPUB
+    const content = await zip.generateAsync({ 
+      type: 'blob',
+      mimeType: 'application/epub+zip',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 9 }
+    })
+    
+    console.log('EPUB blob generated, starting download...', content)
+    
+    const url = URL.createObjectURL(content)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${book.title.replace(/[^a-z0-9\s]/gi, '').replace(/\s+/g, '_').toLowerCase()}.epub`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    
+    console.log('EPUB download initiated successfully')
+  } catch (error) {
+    console.error('EPUB generation failed:', error)
+    throw error
   }
-
-  // Generate title page
-  const titlePageHtml = generateTitlePage(book, styles)
-  oebps.file('title.xhtml', titlePageHtml)
-
-  // Generate copyright page (required by Amazon KDP)
-  const copyrightPageHtml = generateCopyrightPage(book)
-  oebps.file('copyright.xhtml', copyrightPageHtml)
-
-  // Generate table of contents page
-  const tocPageHtml = generateTocPage(book, styles)
-  oebps.file('toc.xhtml', tocPageHtml)
-
-  // Generate chapter files
-  book.pages.forEach((page, index) => {
-    const pageHtml = generatePageHtml(page, styles, index + 1)
-    oebps.file(`chapter${index + 1}.xhtml`, pageHtml)
-  })
-
-  // Generate and download the EPUB
-  const content = await zip.generateAsync({ type: 'blob' })
-  const url = URL.createObjectURL(content)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${book.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.epub`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
 }
 
 const generateCSS = (styles) => {
   // Handle font family mapping
   const getFontFamily = (fontFamilyValue) => {
     const fontMap = {
-      'serif': 'Georgia, serif',
-      'sans-serif': 'Arial, sans-serif', 
-      'monospace': 'Courier, monospace',
-      'sans': 'Arial, sans-serif', // Legacy support
-      'mono': 'Courier, monospace' // Legacy support
+      'serif': 'Georgia, "Times New Roman", Times, serif',
+      'sans-serif': 'Arial, Helvetica, sans-serif', 
+      'monospace': '"Courier New", Courier, monospace',
+      'sans': 'Arial, Helvetica, sans-serif', // Legacy support
+      'mono': '"Courier New", Courier, monospace' // Legacy support
     }
-    return fontMap[fontFamilyValue] || fontFamilyValue || 'Georgia, serif'
+    return fontMap[fontFamilyValue] || fontFamilyValue || 'Georgia, "Times New Roman", Times, serif'
   }
 
   const fontFamily = getFontFamily(styles.fontFamily)
 
-  // Build advanced CSS with all styling options
+  // Build responsive CSS with fluid typography and adaptive layouts
   let css = `
-    /* Base Typography */
+    /* ===== RESPONSIVE FOUNDATION ===== */
+    /* Viewport and box-sizing reset */
+    html {
+      box-sizing: border-box;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    
+    *, *:before, *:after {
+      box-sizing: inherit;
+    }
+    
+    /* ===== RESPONSIVE TYPOGRAPHY ===== */
     body {
       font-family: ${fontFamily};
-      font-size: ${styles.fontSize || '16px'};
+      font-size: clamp(14px, 4vw, ${styles.fontSize || '18px'});
       font-weight: ${styles.fontWeight || '400'};
       line-height: ${styles.lineHeight || '1.6'};
       color: ${styles.color || '#2d3748'};
       background-color: ${styles.backgroundColor || '#ffffff'};
       text-align: ${styles.textAlign || 'left'};
-      margin: ${styles.marginTop || '1em'} ${styles.paddingRight || '1em'} ${styles.marginBottom || '1em'} ${styles.paddingLeft || '1em'};
+      
+      /* Responsive margins */
+      margin: 0;
+      padding: clamp(1rem, 5vw, 2rem);
+      max-width: 100%;
       
       /* Advanced Typography */
-      letter-spacing: ${styles.letterSpacing || '0px'};
-      word-spacing: ${styles.wordSpacing || '0px'};
+      letter-spacing: ${styles.letterSpacing || '0.02em'};
+      word-spacing: ${styles.wordSpacing || 'normal'};
       text-transform: ${styles.textTransform || 'none'};
-      text-indent: ${styles.textIndent || '0px'};
+      text-indent: ${styles.textIndent || '0'};
       
       /* EPUB Quality Features */
-      hyphens: ${styles.hyphens || 'auto'};
-      orphans: ${styles.orphans || '3'};
-      widows: ${styles.widows || '3'};
+      hyphens: auto;
+      -webkit-hyphens: auto;
+      -ms-hyphens: auto;
+      orphans: 3;
+      widows: 3;
       
       /* Advanced Text Rendering */
-      text-rendering: ${styles.textRendering || 'optimizeLegibility'};
-      -webkit-font-smoothing: ${styles.WebkitFontSmoothing || 'antialiased'};
-      -moz-osx-font-smoothing: ${styles.MozOsxFontSmoothing || 'grayscale'};
-      font-variant-ligatures: ${styles.fontVariantLigatures || 'common-ligatures'};
-      font-variant-numeric: ${styles.fontVariantNumeric || 'normal'};
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-variant-ligatures: common-ligatures;
+      font-feature-settings: "kern" 1, "liga" 1;
+      
+      /* Responsive word wrapping */
+      word-wrap: break-word;
+      overflow-wrap: break-word;
       
       /* Page Break Control */
-      page-break-inside: ${styles.pageBreakInside || 'auto'};
+      page-break-inside: auto;
     }
     
-    /* Paragraph Styling */
+    /* ===== FLUID TYPOGRAPHY SCALE ===== */
+    /* Responsive paragraph styling */
     p {
-      margin: 0 0 ${styles.marginBottom || '1em'} 0;
-      text-indent: ${styles.textIndent || '1.5em'};
+      margin: 0 0 clamp(0.8rem, 3vw, 1.2rem) 0;
+      text-indent: ${styles.textAlign === 'justify' ? 'clamp(1rem, 3vw, 1.5rem)' : '0'};
       text-align: ${styles.textAlign || 'left'};
-      hyphens: ${styles.hyphens || 'auto'};
-      orphans: ${styles.orphans || '3'};
-      widows: ${styles.widows || '3'};
+      hyphens: auto;
+      -webkit-hyphens: auto;
+      -ms-hyphens: auto;
+      orphans: 3;
+      widows: 3;
+      max-width: 100%;
+      word-wrap: break-word;
     }
     
-    /* Drop Cap Styling */
+    /* First paragraph in chapters - no indent */
+    .chapter-start p:first-of-type,
+    .chapter-content > p:first-child {
+      text-indent: 0;
+    }
+    
+    /* Drop Cap Styling - Responsive */
     ${styles.dropCap === 'enabled' ? `
-    p:first-of-type::first-letter,
-    .chapter-start p:first-of-type::first-letter {
-      font-size: 3em;
+    .chapter-start p:first-of-type::first-letter,
+    .chapter-content > p:first-child::first-letter {
+      font-size: clamp(2.5em, 8vw, 4em);
       float: left;
       line-height: 0.8;
       margin: 0.1em 0.1em 0 0;
@@ -145,28 +209,337 @@ const generateCSS = (styles) => {
     }
     ` : ''}
     
-    /* Heading Styles */
+    /* ===== RESPONSIVE HEADINGS ===== */
     h1, h2, h3, h4, h5, h6 {
       font-family: ${fontFamily};
       color: ${styles.color || '#2d3748'};
       page-break-after: avoid;
       orphans: 3;
       widows: 3;
-      text-rendering: ${styles.textRendering || 'optimizeLegibility'};
+      text-rendering: optimizeLegibility;
+      margin-top: clamp(1rem, 4vw, 2rem);
+      margin-bottom: clamp(0.5rem, 2vw, 1rem);
+      word-wrap: break-word;
+      max-width: 100%;
     }
     
     h1 {
-      font-size: 2em;
+      font-size: clamp(1.5rem, 6vw, 2.5rem);
       font-weight: ${Math.max(parseInt(styles.fontWeight || '400') + 200, 700)};
-      margin: 1.5em 0 1em 0;
-      text-align: ${styles.textAlign === 'left' ? 'center' : styles.textAlign || 'center'};
+      text-align: center;
       page-break-before: always;
+      margin-top: clamp(1rem, 5vw, 3rem);
+      margin-bottom: clamp(1rem, 3vw, 2rem);
     }
     
     h2 {
-      font-size: 1.5em;
+      font-size: clamp(1.25rem, 5vw, 2rem);
       font-weight: ${Math.max(parseInt(styles.fontWeight || '400') + 100, 600)};
-      margin: 1.3em 0 0.8em 0;
+    }
+    
+    h3 {
+      font-size: clamp(1.1rem, 4vw, 1.5rem);
+      font-weight: ${Math.max(parseInt(styles.fontWeight || '400') + 100, 600)};
+    }
+    
+    h4, h5, h6 {
+      font-size: clamp(1rem, 3.5vw, 1.25rem);
+      font-weight: ${Math.max(parseInt(styles.fontWeight || '400') + 100, 600)};
+    }
+    
+    /* ===== RESPONSIVE CONTENT ELEMENTS ===== */
+    /* Responsive blockquotes */
+    blockquote {
+      margin: clamp(1rem, 4vw, 2rem) clamp(1rem, 5vw, 3rem);
+      padding: clamp(0.5rem, 2vw, 1rem) clamp(1rem, 3vw, 2rem);
+      border-left: clamp(2px, 0.5vw, 4px) solid ${styles.color || '#2d3748'};
+      font-style: italic;
+      color: ${styles.color || '#2d3748'};
+      opacity: 0.9;
+      background-color: ${styles.backgroundColor === '#ffffff' ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.05)'};
+      border-radius: clamp(2px, 0.5vw, 6px);
+      font-size: clamp(0.9rem, 3.5vw, 1.1rem);
+    }
+    
+    /* Responsive code blocks */
+    code, pre {
+      font-family: "Courier New", Courier, monospace;
+      background-color: ${styles.backgroundColor === '#ffffff' ? '#f8f9fa' : 'rgba(255,255,255,0.1)'};
+      border-radius: clamp(2px, 0.3vw, 4px);
+      font-size: clamp(0.8rem, 3vw, 0.95rem);
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+    
+    code {
+      padding: clamp(0.1rem, 0.5vw, 0.3rem) clamp(0.2rem, 1vw, 0.5rem);
+    }
+    
+    pre {
+      padding: clamp(0.8rem, 3vw, 1.5rem);
+      margin: clamp(1rem, 3vw, 2rem) 0;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      max-width: 100%;
+      word-break: break-all;
+    }
+    
+    /* ===== RESPONSIVE LISTS ===== */
+    ul, ol {
+      margin: clamp(0.8rem, 3vw, 1.5rem) 0;
+      padding-left: clamp(1.5rem, 4vw, 2.5rem);
+      max-width: 100%;
+    }
+    
+    li {
+      margin: clamp(0.3rem, 1vw, 0.6rem) 0;
+      line-height: ${parseFloat(styles.lineHeight || '1.6') + 0.1};
+      word-wrap: break-word;
+    }
+    
+    /* ===== RESPONSIVE IMAGES ===== */
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: clamp(1rem, 4vw, 2rem) auto;
+      page-break-inside: avoid;
+      border-radius: clamp(2px, 0.5vw, 8px);
+      box-shadow: 0 clamp(2px, 0.5vw, 4px) clamp(8px, 2vw, 16px) rgba(0,0,0,0.1);
+    }
+    
+    /* Responsive image captions */
+    .image-caption {
+      font-size: clamp(0.8rem, 3vw, 0.9rem);
+      text-align: center;
+      font-style: italic;
+      margin-top: clamp(0.5rem, 1vw, 0.8rem);
+      color: ${styles.color || '#2d3748'};
+      opacity: 0.8;
+    }
+    
+    /* ===== RESPONSIVE TABLES ===== */
+    table {
+      width: 100%;
+      max-width: 100%;
+      border-collapse: collapse;
+      margin: clamp(1rem, 3vw, 2rem) 0;
+      page-break-inside: avoid;
+      font-size: clamp(0.8rem, 3vw, 1rem);
+      overflow-x: auto;
+      display: block;
+      white-space: nowrap;
+    }
+    
+    th, td {
+      border: 1px solid ${styles.color || '#2d3748'};
+      padding: clamp(0.3rem, 1.5vw, 0.8rem);
+      text-align: left;
+      word-wrap: break-word;
+      max-width: 200px;
+      overflow-wrap: break-word;
+    }
+    
+    th {
+      background-color: ${styles.backgroundColor === '#ffffff' ? '#f8f9fa' : 'rgba(255,255,255,0.1)'};
+      font-weight: bold;
+    }
+    
+    /* ===== RESPONSIVE LAYOUT CLASSES ===== */
+    .title-page {
+      text-align: center;
+      padding: clamp(2rem, 8vw, 4rem) clamp(1rem, 4vw, 2rem);
+      page-break-after: always;
+      max-width: 100%;
+    }
+    
+    .title-page h1 {
+      font-size: clamp(2rem, 8vw, 4rem);
+      margin-bottom: clamp(1rem, 3vw, 2rem);
+      font-weight: ${Math.max(parseInt(styles.fontWeight || '400') + 300, 800)};
+      line-height: 1.2;
+      word-wrap: break-word;
+    }
+    
+    .title-page .author {
+      font-size: clamp(1rem, 4vw, 1.5rem);
+      margin-top: clamp(1.5rem, 4vw, 3rem);
+      font-weight: ${Math.max(parseInt(styles.fontWeight || '400') + 100, 500)};
+    }
+    
+    .title-page .description {
+      font-size: clamp(0.9rem, 3.5vw, 1.1rem);
+      margin: clamp(2rem, 5vw, 3rem) auto;
+      max-width: min(90%, 500px);
+      text-align: justify;
+      line-height: ${parseFloat(styles.lineHeight || '1.6') + 0.2};
+      hyphens: auto;
+    }
+    
+    .title-page .series {
+      font-size: clamp(0.8rem, 3vw, 1rem);
+      margin-top: clamp(1rem, 3vw, 2rem);
+      font-style: italic;
+      opacity: 0.8;
+    }
+    
+    .copyright-page {
+      page-break-before: always;
+      page-break-after: always;
+      padding: clamp(2rem, 5vw, 3rem) clamp(1rem, 3vw, 2rem);
+      max-width: 100%;
+    }
+    
+    .copyright-page h1 {
+      text-align: center;
+      margin-bottom: clamp(2rem, 5vw, 3rem);
+    }
+    
+    .copyright-content p {
+      margin-bottom: clamp(0.8rem, 2vw, 1.2rem);
+      text-indent: 0;
+      font-size: clamp(0.8rem, 3vw, 1rem);
+      text-align: justify;
+      hyphens: auto;
+    }
+    
+    .chapter-start {
+      page-break-before: always;
+      padding-top: clamp(1rem, 4vw, 3rem);
+      max-width: 100%;
+    }
+    
+    .chapter-content {
+      max-width: 100%;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+    
+    .toc {
+      padding: clamp(2rem, 5vw, 3rem) clamp(1rem, 3vw, 2rem);
+      max-width: 100%;
+    }
+    
+    .toc ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .toc li {
+      margin: clamp(0.5rem, 2vw, 1rem) 0;
+      padding: clamp(0.25rem, 1vw, 0.5rem) 0;
+      border-bottom: 1px dotted ${styles.color || '#2d3748'};
+      word-wrap: break-word;
+    }
+    
+    .toc a {
+      color: ${styles.color || '#2d3748'};
+      text-decoration: none;
+      font-size: clamp(0.9rem, 3.5vw, 1.1rem);
+      display: block;
+      padding: clamp(0.3rem, 1vw, 0.5rem) 0;
+    }
+    
+    /* ===== RESPONSIVE UTILITIES ===== */
+    /* Responsive text wrapping */
+    .text-wrap {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      hyphens: auto;
+      -webkit-hyphens: auto;
+      -ms-hyphens: auto;
+    }
+    
+    /* Responsive spacing utilities */
+    .responsive-margin {
+      margin: clamp(1rem, 3vw, 2rem) 0;
+    }
+    
+    .responsive-padding {
+      padding: clamp(0.5rem, 2vw, 1rem);
+    }
+    
+    /* Print-specific responsive rules */
+    @media print {
+      body {
+        font-size: 12pt;
+        line-height: 1.5;
+        padding: 1in;
+      }
+      
+      h1 { font-size: 20pt; }
+      h2 { font-size: 16pt; }
+      h3 { font-size: 14pt; }
+      h4, h5, h6 { font-size: 12pt; }
+      
+      img {
+        max-width: 100%;
+        page-break-inside: avoid;
+      }
+      
+      blockquote, pre {
+        page-break-inside: avoid;
+      }
+    }
+    
+    /* ===== MOBILE-FIRST RESPONSIVE BREAKPOINTS ===== */
+    @media screen and (max-width: 480px) {
+      body {
+        padding: 1rem 0.75rem;
+        font-size: 16px;
+      }
+      
+      .title-page {
+        padding: 2rem 1rem;
+      }
+      
+      table {
+        font-size: 12px;
+      }
+      
+      th, td {
+        padding: 0.25rem;
+      }
+    }
+    
+    @media screen and (min-width: 481px) and (max-width: 768px) {
+      body {
+        padding: 1.5rem 1rem;
+        font-size: 17px;
+      }
+    }
+    
+    @media screen and (min-width: 769px) {
+      body {
+        padding: 2rem 1.5rem;
+        font-size: ${styles.fontSize || '18px'};
+        max-width: 800px;
+        margin: 0 auto;
+      }
+    }
+    
+    /* ===== ACCESSIBILITY ENHANCEMENTS ===== */
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+    
+    @media (prefers-contrast: high) {
+      body {
+        background-color: white;
+        color: black;
+      }
+      
+      a {
+        color: blue;
+      }
+      
+      blockquote {
+        border-left-color: black;
+      }
     }
     
     h3 {
@@ -406,7 +779,8 @@ const generateContentOpf = (book) => {
     <dc:title>${escapeXml(book.title)}</dc:title>
     <dc:creator id="creator">${escapeXml(book.author)}</dc:creator>
     <meta refines="#creator" property="file-as">${escapeXml(book.author.split(' ').reverse().join(', '))}</meta>
-    <meta refines="#creator" property="role" scheme="marc:relators">aut</meta>    <dc:language>${book.language || 'en'}</dc:language>
+    <meta refines="#creator" property="role" scheme="marc:relators">aut</meta>
+    <dc:language>${book.language || 'en'}</dc:language>
     ${book.description ? `<dc:description>${escapeXml(book.description)}</dc:description>` : ''}
     ${book.genre ? `<dc:subject>${escapeXml(book.genre)}</dc:subject>` : ''}
     ${book.publisher ? `<dc:publisher>${escapeXml(book.publisher)}</dc:publisher>` : ''}
@@ -510,12 +884,11 @@ ${book.publisher ? `Published by ${book.publisher}` : 'Self-published'}
 ${book.isbn ? `ISBN: ${book.isbn}` : ''}
 
 First published ${book.publishDate || new Date().toISOString().split('T')[0]}`
-
   return generateXhtmlTemplate(`
     <div class="copyright-page">
       <h1>Copyright</h1>
       <div class="copyright-content">
-        ${escapeHtml(book.copyright || defaultCopyright).split('\n').map(line => `<p>${line}</p>`).join('')}
+        ${escapeXml(book.copyright || defaultCopyright).split('\n').map(line => `<p>${line}</p>`).join('')}
       </div>
     </div>
   `, 'Copyright')
@@ -537,11 +910,17 @@ ${tocItems}
 }
 
 const generatePageHtml = (page, styles, chapterNumber) => {
+  if (!page || !page.title) {
+    throw new Error(`Invalid page data for chapter ${chapterNumber}`)
+  }
+  
+  const cleanContent = page.content || '<p>This chapter is empty.</p>'
+  
   return generateXhtmlTemplate(`
     <div class="chapter-start">
       <h1>${escapeXml(page.title)}</h1>
       <div class="chapter-content">
-        ${page.content}
+        ${cleanContent}
       </div>
     </div>
   `, page.title)
@@ -564,7 +943,8 @@ ${content}
 }
 
 const escapeXml = (text) => {
-  return text
+  if (!text) return ''
+  return String(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

@@ -1,6 +1,27 @@
 .table-of-contents {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.table-of-contents::-webkit-scrollbar {
+  width: 6px;
+}
+
+.table-of-contents::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.table-of-contents::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.table-of-contents::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .toc-item {
@@ -29,6 +50,7 @@
   gap: 0.5rem;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .chapter-number {
@@ -36,6 +58,7 @@
   color: #64748b;
   font-weight: 500;
   flex-shrink: 0;
+  width: 20px;
 }
 
 .toc-title {
@@ -46,6 +69,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
+  min-width: 0;
 }
 
 .toc-item.active .toc-title {
@@ -70,6 +94,8 @@
   gap: 0.25rem;
   opacity: 0;
   transition: opacity 0.2s;
+  flex-shrink: 0;
+  margin-left: 0.5rem;
 }
 
 .toc-item:hover .toc-actions {
@@ -111,9 +137,55 @@
   
   .chapter-number {
     font-size: 0.8rem;
+    width: 16px;
   }
   
   .toc-actions {
     opacity: 1; /* Always show on mobile */
+    margin-left: 0.25rem;
+  }
+  
+  .toc-action-btn {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .toc-action-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .toc-item {
+    padding: 0.4rem 0;
+  }
+  
+  .toc-title {
+    font-size: 0.75rem;
+  }
+  
+  .chapter-number {
+    font-size: 0.75rem;
+    width: 14px;
+  }
+  
+  .toc-item-content {
+    gap: 0.25rem;
+  }
+  
+  .toc-actions {
+    gap: 0.15rem;
+    margin-left: 0.15rem;
+  }
+  
+  .toc-action-btn {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .toc-action-btn svg {
+    width: 10px;
+    height: 10px;
   }
 }

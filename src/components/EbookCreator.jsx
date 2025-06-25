@@ -12,38 +12,38 @@ import { saveProject, loadProject } from '../utils/exportUtils'
 import './EbookCreator.css'
 
 const EbookCreator = () => {  const [book, setBook] = useState({
-    title: 'My Book',
+    title: 'Untitled Book',
     author: 'Author Name',
     pages: [
       { 
         id: 1, 
-        title: 'Chapter 1', 
-        content: '<p>Start writing your story here...</p>',
+        title: 'Chapter 1: Getting Started', 
+        content: '<p>Welcome to your new book! This is your first chapter.</p><p>Click here to start writing your story, and watch as your ideas come to life. You can add formatting, images, and create as many chapters as you need.</p><p>When you\'re ready, use the Export button to create your professional EPUB file!</p>',
         comments: []
       }
     ]
   })
-  
-  const [metadata, setMetadata] = useState({
-    title: 'My Book',
+    const [metadata, setMetadata] = useState({
+    title: 'Untitled Book',
     author: 'Author Name',
     description: '',
     genre: '',
     language: 'en',
     publisher: '',
     publishDate: '',
-    isbn: '',    series: '',
+    isbn: '',
+    series: '',
     copyright: '',
     coverImage: null
   })
-  
-  const [currentPageId, setCurrentPageId] = useState(1)
+    const [currentPageId, setCurrentPageId] = useState(1)
   const [showPreview, setShowPreview] = useState(false)
   const [showStylePanel, setShowStylePanel] = useState(false)
   const [showMetadataPanel, setShowMetadataPanel] = useState(false)
   const [showValidationPanel, setShowValidationPanel] = useState(false)
   const [autoSaveStatus, setAutoSaveStatus] = useState('')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   
   const [styles, setStyles] = useState({
     fontFamily: 'serif',
@@ -53,11 +53,10 @@ const EbookCreator = () => {  const [book, setBook] = useState({
     color: '#333333',
     backgroundColor: '#ffffff'
   })
-
   // Auto-save functionality
   useEffect(() => {
     const autoSave = setInterval(() => {
-      if (book.title !== 'My Book' && book.pages.length > 0) {
+      if (book.title !== 'Untitled Book' && book.pages.length > 0) {
         try {
           localStorage.setItem('autoSave', JSON.stringify({ book, styles, metadata, timestamp: Date.now() }))
           setAutoSaveStatus('Auto-saved')
@@ -72,24 +71,23 @@ const EbookCreator = () => {  const [book, setBook] = useState({
   }, [book, styles, metadata])
 
   // Load auto-save on mount
-  useEffect(() => {
-    try {
-      const autoSaveData = localStorage.getItem('autoSave')
-      if (autoSaveData) {
-        const saved = JSON.parse(autoSaveData)
-        if (saved.book && saved.book.title !== 'My Book') {
-          const shouldRestore = window.confirm('Found auto-saved work. Would you like to restore it?')
-          if (shouldRestore) {
-            setBook(saved.book)
-            setStyles(saved.styles || styles)
-            setMetadata(saved.metadata || metadata)
-            if (saved.book.pages?.length > 0) {
-              setCurrentPageId(saved.book.pages[0].id)
+  useEffect(() => {      try {
+        const autoSaveData = localStorage.getItem('autoSave')
+        if (autoSaveData) {
+          const saved = JSON.parse(autoSaveData)
+          if (saved.book && saved.book.title !== 'Untitled Book') {
+            const shouldRestore = window.confirm('Found auto-saved work. Would you like to restore it?')
+            if (shouldRestore) {
+              setBook(saved.book)
+              setStyles(saved.styles || styles)
+              setMetadata(saved.metadata || metadata)
+              if (saved.book.pages?.length > 0) {
+                setCurrentPageId(saved.book.pages[0].id)
+              }
             }
           }
         }
-      }
-    } catch (error) {
+      } catch (error) {
       console.error('Failed to load auto-save:', error)
     }
   }, [])
@@ -217,22 +215,78 @@ const EbookCreator = () => {  const [book, setBook] = useState({
       alert('Failed to load project: ' + error.message)
     }
   }
-
   const handleSaveProject = () => {
     try {
       saveProject(book, styles, metadata)
-      alert('Project saved successfully!')    } catch (error) {
+      alert('Project saved successfully!')
+    } catch (error) {
       alert('Failed to save project: ' + error.message)
     }
   }
 
   const handleExportEPUB = async () => {
     try {
-      await generateEPUB({ ...book, ...metadata }, styles)
-      alert('EPUB 3.0 exported successfully!')
+      setIsExporting(true)
+        // Validate required fields
+      if (!book.title || book.title.trim() === '' || book.title === 'My Book' || book.title === 'Untitled Book') {
+        alert('📚 Please set a custom book title before exporting.\n\nClick on the book title at the top to edit it.')
+        return
+      }
+      
+      if (!book.author || book.author.trim() === '' || book.author === 'Author Name') {
+        alert('✍️ Please set an author name before exporting.\n\nClick on the author name at the top to edit it.')
+        return
+      }
+
+      if (!book.pages || book.pages.length === 0) {
+        alert('📝 Please add at least one chapter with content before exporting.')
+        return
+      }
+
+      // Check if any pages have content
+      const hasContent = book.pages.some(page => 
+        page.content && page.content.replace(/<[^>]*>/g, '').trim().length > 0
+      )
+      
+      if (!hasContent) {
+        alert('📄 Please add some content to your chapters before exporting.\n\nYour book needs text content to create a valid EPUB.')
+        return
+      }
+
+      // Merge book data with metadata for export
+      const exportData = {
+        ...book,
+        title: metadata.title || book.title,
+        author: metadata.author || book.author,
+        description: metadata.description || '',
+        genre: metadata.genre || '',        language: metadata.language || 'en',
+        publisher: metadata.publisher || '',
+        publishDate: metadata.publishDate || new Date().toISOString().split('T')[0],
+        isbn: metadata.isbn || '',
+        series: metadata.series || '',
+        copyright: metadata.copyright || `Copyright © ${new Date().getFullYear()} ${metadata.author || book.author}`,
+        coverImage: metadata.coverImage
+      }
+
+      await generateEPUB(exportData, styles)
+      alert('🎉 EPUB 3.0 exported successfully!\n\nYour ebook is now ready for publishing on Amazon KDP, Apple Books, and other platforms.')
     } catch (error) {
       console.error('Export failed:', error)
-      alert('Export failed. Please try again.')
+      
+      let errorMessage = 'Export failed. Please try again.'
+      
+      // Provide more specific error messages
+      if (error.message.includes('Missing required book data')) {
+        errorMessage = '❌ Missing required information. Please ensure your book has a title, author, and at least one chapter with content.'
+      } else if (error.message.includes('JSZip')) {
+        errorMessage = '🔧 There was a technical issue creating the EPUB file. Please refresh the page and try again.'
+      } else if (error.message.includes('network')) {
+        errorMessage = '🌐 Network error. Please check your internet connection and try again.'
+      }
+      
+      alert(`${errorMessage}\n\nError details: ${error.message}`)
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -325,9 +379,11 @@ const EbookCreator = () => {  const [book, setBook] = useState({
             >
               <Settings size={18} />
               <span>Style</span>
-            </button>
-            <button 
-              onClick={() => setShowPreview(true)}
+            </button>            <button 
+              onClick={() => {
+                setShowPreview(true)
+                setShowMobileMenu(false)
+              }}
               className="action-btn"
               title="Preview Book (Ctrl+P)"
             >
@@ -336,15 +392,19 @@ const EbookCreator = () => {  const [book, setBook] = useState({
             </button>
             
             <button 
-              onClick={handleExportEPUB}
-              className="action-btn export-btn"
+              onClick={async () => {
+                await handleExportEPUB()
+                setShowMobileMenu(false)
+              }}
+              className={`action-btn export-btn ${isExporting ? 'loading' : ''}`}
               title="Export EPUB 3.0 (Ctrl+E)"
-            >
-              <Download size={18} />
-              <span>Export EPUB</span>
+              disabled={isExporting}
+            >              {!isExporting && <Download size={18} />}
+              <span>{isExporting ? 'Exporting...' : 'Export EPUB'}</span>
             </button>
           </div>
-            <div className="header-stats">
+          
+          <div className="header-stats">
             {autoSaveStatus && <span className="auto-save-status">{autoSaveStatus}</span>}
             <span className="word-count">{getWordCount()} words</span>
           </div>
