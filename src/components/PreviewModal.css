@@ -58,6 +58,27 @@
   font-style: normal;
   margin-top: var(--spacing-sm);
   max-width: 400px;
+  max-height: 120px;
+  overflow-y: auto;
+  padding-right: var(--spacing-xs);
+  line-height: var(--line-height-relaxed);
+}
+
+.preview-book-info .book-description::-webkit-scrollbar {
+  width: 4px;
+}
+
+.preview-book-info .book-description::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.preview-book-info .book-description::-webkit-scrollbar-thumb {
+  background: var(--color-border-hover);
+  border-radius: 2px;
+}
+
+.preview-book-info .book-description::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
 }
 
 .preview-close-btn {

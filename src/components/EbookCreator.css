@@ -1,3 +1,7 @@
+/* Import theme styles */
+@import './ThemeSwitcher.css';
+@import './WritingTimer.css';
+
 .ebook-creator {
   height: 100vh;
   display: flex;
@@ -273,6 +277,13 @@
   color: #1e293b;
 }
 
+.sidebar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.search-btn,
 .add-page-btn {
   display: flex;
   align-items: center;
@@ -287,6 +298,7 @@
   color: #64748b;
 }
 
+.search-btn:hover,
 .add-page-btn:hover {
   background: #3b82f6;
   border-color: #3b82f6;
@@ -375,6 +387,22 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-lg);
+  flex: 1;
+}
+
+.footer-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex: 1;
+  justify-content: flex-end;
 }
 
 .footer-stats {
@@ -790,6 +818,7 @@
   .app-footer {
     padding: 0.4rem 0.75rem;
     min-height: 35px;
+    gap: var(--spacing-sm);
   }
   
   .footer-stats {
@@ -797,8 +826,13 @@
     font-size: 0.7rem;
   }
   
-  .footer-left {
+  .footer-left,
+  .footer-right {
     gap: 0.5rem;
+  }
+  
+  .footer-center {
+    flex: 0 0 auto;
   }
 }
 
@@ -810,13 +844,28 @@
     min-height: auto;
   }
   
-  .footer-left {
-    order: 1;
+  .footer-left,
+  .footer-center,
+  .footer-right {
+    flex: none;
     justify-content: center;
   }
   
-  .footer-stats {
+  .footer-left {
+    order: 1;
+  }
+  
+  .footer-center {
     order: 2;
+  }
+  
+  .footer-right {
+    order: 3;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+  
+  .footer-stats {
     justify-content: center;
     gap: 0.75rem;
   }

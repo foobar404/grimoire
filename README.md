@@ -3,14 +3,6 @@
 
 > **Transform your words into professional ebooks in minutes**
 
-<div align="center">
-
-![Grimoire Demo](https://img.shields.io/badge/✨-Live_Demo-8b5cf6?style=for-the-badge)
-![Free Forever](https://img.shields.io/badge/💝-Free_Forever-10b981?style=for-the-badge)
-![No Signup](https://img.shields.io/badge/🚀-No_Signup_Required-f59e0b?style=for-the-badge)
-
-</div>
-
 ---
 
 ## 🪄 **Why Choose Grimoire?**

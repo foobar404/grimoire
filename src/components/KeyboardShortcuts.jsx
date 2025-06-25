@@ -7,14 +7,14 @@ const KeyboardShortcuts = () => {
   const [showModal, setShowModal] = useState(false)
 
   const shortcuts = [
-    { key: 'Ctrl+S', description: 'Save project' },
-    { key: 'Ctrl+E', description: 'Export EPUB 3.0' },
-    { key: 'Ctrl+P', description: 'Preview book' },
-    { key: 'Ctrl+N', description: 'New chapter' },
-    { key: 'Ctrl+D', description: 'Duplicate current chapter' },
-    { key: 'Ctrl+1', description: 'Toggle style panel' },
-    { key: 'Ctrl+2', description: 'Toggle metadata panel' },
-    { key: 'Ctrl+F', description: 'Toggle distraction-free mode' },
+    { key: 'Alt+S', description: 'Save project' },
+    { key: 'Alt+E', description: 'Export EPUB 3.0' },
+    { key: 'Alt+P', description: 'Preview book' },
+    { key: 'Alt+N', description: 'New chapter' },
+    { key: 'Alt+D', description: 'Duplicate current chapter' },
+    { key: 'Alt+1', description: 'Toggle style panel' },
+    { key: 'Alt+2', description: 'Toggle metadata panel' },
+    { key: 'Alt+F', description: 'Toggle distraction-free mode' },
     { key: 'Ctrl+Z', description: 'Undo' },
     { key: 'Ctrl+Shift+Z', description: 'Redo' },
   ]

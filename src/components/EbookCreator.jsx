@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { BookOpen, Plus, Eye, Settings, Info, Save, FolderOpen, CheckCircle, Download, Menu, X, Sparkles, TrendingUp, Focus, Clock } from 'lucide-react'
+import { BookOpen, Plus, Eye, Settings, Info, Save, FolderOpen, CheckCircle, Download, Menu, X, Sparkles, TrendingUp, Focus, Clock, Search } from 'lucide-react'
 import PageEditor from './PageEditor'
 import TableOfContents from './TableOfContents'
 import StylePanel from './StylePanel'
@@ -10,6 +10,8 @@ import KeyboardShortcuts from './KeyboardShortcuts'
 import QuickActionsBar from './QuickActionsBar'
 import WritingInsights from './WritingInsights'
 import CelebrationToast from './CelebrationToast'
+import WritingTimer from './WritingTimer'
+import ThemeSwitcher from './ThemeSwitcher'
 import { generateEPUB } from '../utils/epubGenerator'
 import { saveProject, loadProject } from '../utils/exportUtils'
 import { 
@@ -24,20 +26,20 @@ import {
 import './EbookCreator.css'
 
 const EbookCreator = () => {  const [book, setBook] = useState({
-    title: 'Untitled Book',
-    author: 'Author Name',
+    title: '',
+    author: '',
     pages: [
       { 
         id: 1, 
-        title: 'Chapter 1: Getting Started', 
-        content: '<p>Welcome to your new book! This is your first chapter.</p><p>Click here to start writing your story, and watch as your ideas come to life. You can add formatting, images, and create as many chapters as you need.</p><p>When you\'re ready, use the Export button to create your professional EPUB file!</p>',
+        title: '', 
+        content: '',
         comments: []
       }
     ]
   })
     const [metadata, setMetadata] = useState({
-    title: 'Untitled Book',
-    author: 'Author Name',
+    title: '',
+    author: '',
     description: '',
     genre: '',
     language: 'en',
@@ -152,7 +154,8 @@ const EbookCreator = () => {  const [book, setBook] = useState({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e) => {
-      if (e.ctrlKey || e.metaKey) {
+      // Use Alt key combinations to avoid browser shortcuts
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
         switch (e.key) {
           case 's':
             e.preventDefault()
@@ -186,6 +189,14 @@ const EbookCreator = () => {  const [book, setBook] = useState({
             e.preventDefault()
             setDistractionFreeMode(!distractionFreeMode)
             break
+          default:
+            break
+        }
+      }
+      
+      // Keep Ctrl+Z/Ctrl+Y for undo/redo as these are standard
+      if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+        switch (e.key) {
           case 'z':
             if (e.shiftKey) {
               e.preventDefault()
@@ -277,6 +288,19 @@ const EbookCreator = () => {  const [book, setBook] = useState({
     }))
   }
 
+  const reorderPages = (fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return
+    
+    saveToUndoStack()
+    
+    setBook(prev => {
+      const newPages = [...prev.pages]
+      const [removed] = newPages.splice(fromIndex, 1)
+      newPages.splice(toIndex, 0, removed)
+      return { ...prev, pages: newPages }
+    })
+  }
+
   // Undo/Redo functionality
   const saveToUndoStack = () => {
     setUndoStack(prev => {
@@ -365,7 +389,7 @@ const EbookCreator = () => {  const [book, setBook] = useState({
       // Smart export naming with timestamp
       const timestamp = new Date().toISOString().split('T')[0]
       const version = localStorage.getItem(`${book.title}_version`) || '1.0'
-      const smartName = `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}_v${version}_${timestamp}`
+      const smartName = `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}_v${version}_${timestamp}.json`
       
       saveProject(book, styles, metadata, smartName)
       
@@ -580,7 +604,7 @@ const EbookCreator = () => {  const [book, setBook] = useState({
                 setShowMobileMenu(false)
               }}
               className="action-btn"
-              title="Preview Book (Ctrl+P)"
+              title="Preview Book (Alt+P)"
             >
               <Eye size={18} />
               <span>Preview</span>
@@ -592,7 +616,7 @@ const EbookCreator = () => {  const [book, setBook] = useState({
                 setShowMobileMenu(false)
               }}
               className={`action-btn export-btn ${isExporting ? 'loading' : ''}`}
-              title="Export EPUB 3.0 (Ctrl+E)"
+              title="Export EPUB 3.0 (Alt+E)"
               disabled={isExporting}
             >
               {!isExporting && <Download size={18} />}
@@ -608,9 +632,18 @@ const EbookCreator = () => {  const [book, setBook] = useState({
             <div className="sidebar-section">
               <div className="sidebar-header">
                 <h3>Table of Contents</h3>
-                <button onClick={addNewPage} className="add-page-btn" title="Add New Chapter">
-                  <Plus size={16} />
-                </button>
+                <div className="sidebar-header-actions">
+                  <button 
+                    onClick={() => document.querySelector('.toc-search-toggle')?.click()} 
+                    className="search-btn" 
+                    title="Search chapters"
+                  >
+                    <Search size={16} />
+                  </button>
+                  <button onClick={addNewPage} className="add-page-btn" title="Add New Chapter">
+                    <Plus size={16} />
+                  </button>
+                </div>
               </div>
               <TableOfContents
                 pages={book.pages}
@@ -618,6 +651,7 @@ const EbookCreator = () => {  const [book, setBook] = useState({
                 onPageSelect={setCurrentPageId}
                 onPageUpdate={updatePage}
                 onPageDelete={deletePage}
+                onPageReorder={reorderPages}
                 getReadingTime={getPageReadingTime}
               />
             </div>
@@ -692,20 +726,27 @@ const EbookCreator = () => {  const [book, setBook] = useState({
             <KeyboardShortcuts />
             {autoSaveStatus && <span className="auto-save-status">{autoSaveStatus}</span>}
           </div>
+
+          <div className="footer-center">
+            <WritingTimer />
+          </div>
           
-          <div className="footer-stats">
-            <span className="word-count" title={`Average ${Math.round(getTotalWordCount() / book.pages.length)} words per chapter`}>
-              <Clock size={12} />
-              {getTotalWordCount().toLocaleString()} words
-            </span>
-            <span className="reading-time" title={`${book.pages.length} chapters • ${getTotalWordCount() >= 50000 ? '📚 Novel length!' : getTotalWordCount() >= 10000 ? '📖 Novella territory!' : getTotalWordCount() >= 1000 ? '📝 Strong progress!' : '🌱 Growing!'}`}>
-              📖 {formatReadingTime(getTotalReadingTime())}
-            </span>
-            {getWritingStreak().currentStreak > 0 && (
-              <span className="writing-streak" title={`You've written for ${getWritingStreak().currentStreak} consecutive days!`}>
-                🔥 {getWritingStreak().currentStreak} day streak
+          <div className="footer-right">
+            <div className="footer-stats">
+              <span className="word-count" title={`Average ${Math.round(getTotalWordCount() / book.pages.length)} words per chapter`}>
+                <Clock size={12} />
+                {getTotalWordCount().toLocaleString()} words
               </span>
-            )}
+              <span className="reading-time" title={`${book.pages.length} chapters • ${getTotalWordCount() >= 50000 ? '📚 Novel length!' : getTotalWordCount() >= 10000 ? '📖 Novella territory!' : getTotalWordCount() >= 1000 ? '📝 Strong progress!' : '🌱 Growing!'}`}>
+                📖 {formatReadingTime(getTotalReadingTime())}
+              </span>
+              {getWritingStreak().currentStreak > 0 && (
+                <span className="writing-streak" title={`You've written for ${getWritingStreak().currentStreak} consecutive days!`}>
+                  🔥 {getWritingStreak().currentStreak} day streak
+                </span>
+              )}
+            </div>
+            <ThemeSwitcher />
           </div>
         </footer>
       )}
