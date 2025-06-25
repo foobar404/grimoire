@@ -9,19 +9,19 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e2e8f0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
 }
 
 .style-panel-header h3 {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: white;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
 }
 
 .close-btn {
@@ -30,22 +30,23 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border: none;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 0.375rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--border-radius-sm);
   cursor: pointer;
-  transition: all 0.2s;
-  color: white;
+  transition: all var(--transition-duration);
+  color: var(--color-close-btn);
 }
 
 .close-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.05);
+  background: var(--color-surface-active);
+  color: var(--color-close-btn-hover);
+  border-color: var(--color-border-hover);
 }
 
 .style-panel-content {
   flex: 1;
-  padding: 1rem;
+  padding: var(--spacing-md);
   overflow-y: auto;
 }
 
@@ -54,57 +55,56 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
-  background: #f8fafc;
-  border-radius: 0.5rem;
+  padding: var(--spacing-sm);
+  background: var(--color-surface-hover);
+  border-radius: var(--border-radius-md);
   cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid #e2e8f0;
-  margin-bottom: 0.5rem;
+  transition: all var(--transition-duration);
+  border: 1px solid var(--color-border);
+  margin-bottom: var(--spacing-sm);
 }
 
 .section-header:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+  background: var(--color-surface-active);
+  border-color: var(--color-border-hover);
   transform: translateY(-1px);
 }
 
 .section-title {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  color: #1e293b;
-  font-size: 0.875rem;
+  gap: var(--spacing-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
 }
 
 .section-content {
-  padding: 1rem;
-  background: #ffffff;
-  border-radius: 0.5rem;
-  border: 1px solid #e2e8f0;
-  margin-bottom: 1rem;
+  padding: var(--spacing-md);
+  background: var(--color-surface);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--color-border);
+  margin-bottom: var(--spacing-md);
 }
 
 .style-section {
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-md);
 }
 
 .style-section h4 {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #1e293b;  margin-bottom: 1rem;
-  padding: 0.5rem;
-  background: #f8fafc;
-  border-radius: 0.375rem;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm);
 }
 
 /* Style Groups */
 .style-group {
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-md);
 }
 
 .style-row {

@@ -1,8 +1,9 @@
-import { Trash2, Edit3 } from 'lucide-react'
+import { Trash2, Edit3, Clock } from 'lucide-react'
 import { useState } from 'react'
+import { calculateReadingTime, formatReadingTime, getWordCount } from '../utils/readingTimeUtils'
 import './TableOfContents.css'
 
-const TableOfContents = ({ pages, currentPageId, onPageSelect, onPageUpdate, onPageDelete }) => {
+const TableOfContents = ({ pages, currentPageId, onPageSelect, onPageUpdate, onPageDelete, getReadingTime }) => {
   const [editingId, setEditingId] = useState(null)
   const [editTitle, setEditTitle] = useState('')
 
@@ -30,6 +31,26 @@ const TableOfContents = ({ pages, currentPageId, onPageSelect, onPageUpdate, onP
     }
   }
 
+  const getChapterIndicator = (page) => {
+    const wordCount = getWordCount(page.content)
+    if (wordCount === 0) return '📝'
+    if (wordCount < 100) return '🌱'
+    if (wordCount < 500) return '📄'
+    if (wordCount < 1000) return '📚'
+    if (wordCount < 2000) return '🏆'
+    return '⭐'
+  }
+
+  const getChapterTooltip = (page) => {
+    const wordCount = getWordCount(page.content)
+    if (wordCount === 0) return 'Ready to write!'
+    if (wordCount < 100) return `${wordCount} words - Getting started`
+    if (wordCount < 500) return `${wordCount} words - Good progress`
+    if (wordCount < 1000) return `${wordCount} words - Solid chapter`
+    if (wordCount < 2000) return `${wordCount} words - Excellent length`
+    return `${wordCount} words - Epic chapter!`
+  }
+
   return (
     <div className="table-of-contents">
       {pages.map((page, index) => (
@@ -38,7 +59,12 @@ const TableOfContents = ({ pages, currentPageId, onPageSelect, onPageUpdate, onP
           className={`toc-item ${currentPageId === page.id ? 'active' : ''}`}
         >
           <div className="toc-item-content">
-            <span className="chapter-number">{index + 1}.</span>
+            <span className="chapter-number">
+              <span className="chapter-indicator" title={getChapterTooltip(page)}>
+                {getChapterIndicator(page)}
+              </span>
+              {index + 1}.
+            </span>
             
             {editingId === page.id ? (
               <input
@@ -51,12 +77,20 @@ const TableOfContents = ({ pages, currentPageId, onPageSelect, onPageUpdate, onP
                 autoFocus
               />
             ) : (
-              <span
-                className="toc-title"
-                onClick={() => onPageSelect(page.id)}
-              >
-                {page.title}
-              </span>
+              <div className="toc-title-section">
+                <span
+                  className="toc-title"
+                  onClick={() => onPageSelect(page.id)}
+                >
+                  {page.title}
+                </span>
+                <div className="toc-meta">
+                  <span className="reading-time">
+                    <Clock size={10} />
+                    {formatReadingTime(calculateReadingTime(page.content))}
+                  </span>
+                </div>
+              </div>
             )}
           </div>
 

@@ -90,7 +90,10 @@ export const generateEPUB = async (book, styles) => {
     const url = URL.createObjectURL(content)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${book.title.replace(/[^a-z0-9\s]/gi, '').replace(/\s+/g, '_').toLowerCase()}.epub`
+    
+    // Use custom export name if provided, otherwise generate default
+    const fileName = book.exportName ? `${book.exportName}.epub` : `${book.title.replace(/[^a-z0-9\s]/gi, '').replace(/\s+/g, '_').toLowerCase()}.epub`
+    a.download = fileName
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)

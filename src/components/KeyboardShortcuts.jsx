@@ -1,5 +1,6 @@
 import { X, Keyboard } from 'lucide-react'
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import './KeyboardShortcuts.css'
 
 const KeyboardShortcuts = () => {
@@ -13,6 +14,9 @@ const KeyboardShortcuts = () => {
     { key: 'Ctrl+D', description: 'Duplicate current chapter' },
     { key: 'Ctrl+1', description: 'Toggle style panel' },
     { key: 'Ctrl+2', description: 'Toggle metadata panel' },
+    { key: 'Ctrl+F', description: 'Toggle distraction-free mode' },
+    { key: 'Ctrl+Z', description: 'Undo' },
+    { key: 'Ctrl+Shift+Z', description: 'Redo' },
   ]
 
   return (
@@ -25,7 +29,7 @@ const KeyboardShortcuts = () => {
         <Keyboard size={16} />
       </button>
 
-      {showModal && (
+      {showModal && createPortal(
         <div className="shortcuts-modal-overlay" onClick={() => setShowModal(false)}>
           <div className="shortcuts-modal" onClick={(e) => e.stopPropagation()}>
             <div className="shortcuts-header">
@@ -50,7 +54,8 @@ const KeyboardShortcuts = () => {
               ))}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

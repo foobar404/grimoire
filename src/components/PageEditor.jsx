@@ -6,12 +6,12 @@ import Image from '@tiptap/extension-image'
 import Underline from '@tiptap/extension-underline'
 import Subscript from '@tiptap/extension-subscript'
 import Superscript from '@tiptap/extension-superscript'
-import { Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Quote, Undo, Redo, Image as ImageIcon, Subscript as SubIcon, Superscript as SuperIcon, FileText, Code } from 'lucide-react'
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Quote, Undo, Redo, Image as ImageIcon, Subscript as SubIcon, Superscript as SuperIcon, FileText, Code, Focus, X, Upload } from 'lucide-react'
+import { useEffect, useRef, useCallback, useState, forwardRef, useImperativeHandle } from 'react'
 import Comments from './Comments'
 import './PageEditor.css'
 
-const PageEditor = ({ page, onUpdate, styles }) => {
+const PageEditor = forwardRef(({ page, onUpdate, styles, distractionFreeMode = false, onToggleDistractionFree }, ref) => {
   const fileInputRef = useRef(null)
   const updateTimeoutRef = useRef(null)
   const [showImportModal, setShowImportModal] = useState(false)
@@ -133,7 +133,7 @@ const PageEditor = ({ page, onUpdate, styles }) => {
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none',
+        class: `prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none ${distractionFreeMode ? 'distraction-free-editor' : ''}`,
         style: `
           font-family: ${styles.fontFamily === 'serif' ? 'Georgia, serif' : styles.fontFamily === 'sans' ? 'Arial, sans-serif' : 'Courier, monospace'};
           font-size: ${styles.fontSize};
@@ -145,6 +145,9 @@ const PageEditor = ({ page, onUpdate, styles }) => {
       }
     },
   })
+
+  // Expose editor to parent via ref
+  useImperativeHandle(ref, () => editor, [editor])
 
   // Handle clipboard paste for images and text
   const handlePaste = useCallback((event) => {
@@ -377,6 +380,18 @@ const PageEditor = ({ page, onUpdate, styles }) => {
           </button>
         </div>
 
+        {onToggleDistractionFree && (
+          <div className="toolbar-group">
+            <button
+              onClick={onToggleDistractionFree}
+              className={`toolbar-btn ${distractionFreeMode ? 'active' : ''}`}
+              title="Toggle Focus Mode (Ctrl+F)"
+            >
+              <Focus size={16} />
+            </button>
+          </div>
+        )}
+
         <input
           type="file"
           ref={fileInputRef}
@@ -393,12 +408,15 @@ const PageEditor = ({ page, onUpdate, styles }) => {
         <div className="import-modal-overlay" onClick={() => setShowImportModal(false)}>
           <div className="import-modal" onClick={(e) => e.stopPropagation()}>
             <div className="import-modal-header">
-              <h3>Import Content</h3>
+              <h3>
+                <Upload size={18} />
+                Import Content
+              </h3>
               <button 
                 className="close-btn" 
                 onClick={() => setShowImportModal(false)}
               >
-                ×
+                <X size={18} />
               </button>
             </div>
             
@@ -451,6 +469,8 @@ const PageEditor = ({ page, onUpdate, styles }) => {
       )}
     </div>
   )
-}
+})
+
+PageEditor.displayName = 'PageEditor'
 
 export default PageEditor

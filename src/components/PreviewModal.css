@@ -15,41 +15,48 @@
   width: 90vw;
   height: 90vh;
   max-width: 1200px;
-  background: white;
-  border-radius: 0.75rem;
+  background: var(--color-surface);
+  border-radius: var(--border-radius-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-xl);
 }
 
 .preview-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2rem;
-  border-bottom: 1px solid #e2e8f0;
-  background: #f8fafc;
-  gap: 2rem;
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-hover);
+  gap: var(--spacing-xl);
+}
+
+.preview-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
 }
 
 .preview-book-info h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 0.25rem;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
 }
 
 .preview-book-info p {
-  color: #64748b;
+  color: var(--color-text-secondary);
   font-style: italic;
 }
 
 .preview-book-info .book-description {
-  font-size: 0.875rem;
-  color: #64748b;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
   font-style: normal;
-  margin-top: 0.5rem;
+  margin-top: var(--spacing-sm);
   max-width: 400px;
 }
 
@@ -59,12 +66,18 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: none;
-  background: transparent;
-  border-radius: 0.375rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--border-radius-sm);
   cursor: pointer;
-  transition: all 0.2s;
-  color: #64748b;
+  transition: all var(--transition-duration);
+  color: var(--color-close-btn);
+}
+
+.preview-close-btn:hover {
+  background: var(--color-surface-active);
+  color: var(--color-close-btn-hover);
+  border-color: var(--color-border-hover);
 }
 
 .preview-close-btn:hover {

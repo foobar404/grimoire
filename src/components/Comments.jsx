@@ -38,7 +38,10 @@ const Comments = ({ comments = [], onAddComment, onDeleteComment }) => {
       {showComments && (
         <div className="comments-panel">
           <div className="comments-header">
-            <h4>Comments</h4>
+            <h4>
+              <MessageCircle size={16} />
+              Comments
+            </h4>
             <button 
               className="close-btn"
               onClick={() => setShowComments(false)}

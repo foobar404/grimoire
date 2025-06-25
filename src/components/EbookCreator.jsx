@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { BookOpen, Plus, Eye, Settings, Info, Save, FolderOpen, CheckCircle, Download, Menu, X, Sparkles } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { BookOpen, Plus, Eye, Settings, Info, Save, FolderOpen, CheckCircle, Download, Menu, X, Sparkles, TrendingUp, Focus, Clock } from 'lucide-react'
 import PageEditor from './PageEditor'
 import TableOfContents from './TableOfContents'
 import StylePanel from './StylePanel'
@@ -7,8 +7,20 @@ import PreviewModal from './PreviewModal'
 import MetadataPanel from './MetadataPanel'
 import ValidationPanel from './ValidationPanel'
 import KeyboardShortcuts from './KeyboardShortcuts'
+import QuickActionsBar from './QuickActionsBar'
+import WritingInsights from './WritingInsights'
+import CelebrationToast from './CelebrationToast'
 import { generateEPUB } from '../utils/epubGenerator'
 import { saveProject, loadProject } from '../utils/exportUtils'
+import { 
+  calculateReadingTime, 
+  formatReadingTime, 
+  getWordCount, 
+  updateWritingStreak, 
+  getCelebrationMessage,
+  getWritingInsights,
+  getWritingStreak
+} from '../utils/readingTimeUtils'
 import './EbookCreator.css'
 
 const EbookCreator = () => {  const [book, setBook] = useState({
@@ -44,7 +56,14 @@ const EbookCreator = () => {  const [book, setBook] = useState({
   const [autoSaveStatus, setAutoSaveStatus] = useState('')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
-  
+  const [distractionFreeMode, setDistractionFreeMode] = useState(false)
+  const [showWritingInsights, setShowWritingInsights] = useState(false)
+  const [celebrationMessage, setCelebrationMessage] = useState('')
+  const [previousWordCount, setPreviousWordCount] = useState(0)
+  const [undoStack, setUndoStack] = useState([])
+  const [redoStack, setRedoStack] = useState([])
+  const currentEditorRef = useRef(null)
+
   const [styles, setStyles] = useState({
     fontFamily: 'serif',
     fontSize: '16px',
@@ -70,27 +89,66 @@ const EbookCreator = () => {  const [book, setBook] = useState({
     return () => clearInterval(autoSave)
   }, [book, styles, metadata])
 
-  // Load auto-save on mount
-  useEffect(() => {      try {
-        const autoSaveData = localStorage.getItem('autoSave')
-        if (autoSaveData) {
-          const saved = JSON.parse(autoSaveData)
-          if (saved.book && saved.book.title !== 'Untitled Book') {
-            const shouldRestore = window.confirm('Found auto-saved work. Would you like to restore it?')
-            if (shouldRestore) {
-              setBook(saved.book)
-              setStyles(saved.styles || styles)
-              setMetadata(saved.metadata || metadata)
-              if (saved.book.pages?.length > 0) {
-                setCurrentPageId(saved.book.pages[0].id)
-              }
+  // Load auto-save on mount and apply smart defaults
+  useEffect(() => {
+    // Load auto-save
+    try {
+      const autoSaveData = localStorage.getItem('autoSave')
+      if (autoSaveData) {
+        const saved = JSON.parse(autoSaveData)
+        if (saved.book && saved.book.title !== 'Untitled Book') {
+          const shouldRestore = window.confirm('Found auto-saved work. Would you like to restore it?')
+          if (shouldRestore) {
+            setBook(saved.book)
+            setStyles(saved.styles || styles)
+            setMetadata(saved.metadata || metadata)
+            if (saved.book.pages?.length > 0) {
+              setCurrentPageId(saved.book.pages[0].id)
             }
           }
         }
-      } catch (error) {
+      }
+    } catch (error) {
       console.error('Failed to load auto-save:', error)
     }
+
+    // Apply smart defaults based on user's previous preferences
+    const userPreferences = JSON.parse(localStorage.getItem('userPreferences') || '{}')
+    if (userPreferences.favoriteGenre) {
+      setMetadata(prev => ({ ...prev, genre: userPreferences.favoriteGenre }))
+    }
+    if (userPreferences.preferredTheme) {
+      setStyles(prev => ({ ...prev, ...userPreferences.preferredTheme }))
+    }
   }, [])
+
+  // Track word count changes for celebrations
+  useEffect(() => {
+    const currentWordCount = getTotalWordCount()
+    const celebration = getCelebrationMessage(currentWordCount, previousWordCount)
+    
+    if (celebration && currentWordCount > previousWordCount) {
+      setCelebrationMessage(celebration.message)
+      updateWritingStreak() // Update streak when user writes
+    }
+    
+    setPreviousWordCount(currentWordCount)
+  }, [book.pages])
+
+  // Save user preferences for smart defaults
+  useEffect(() => {
+    const preferences = {
+      favoriteGenre: metadata.genre,
+      preferredTheme: {
+        fontFamily: styles.fontFamily,
+        fontSize: styles.fontSize,
+        color: styles.color,
+        backgroundColor: styles.backgroundColor
+      }
+    }
+    localStorage.setItem('userPreferences', JSON.stringify(preferences))
+  }, [metadata.genre, styles.fontFamily, styles.fontSize, styles.color, styles.backgroundColor])
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -124,6 +182,19 @@ const EbookCreator = () => {  const [book, setBook] = useState({
             e.preventDefault()
             setShowMetadataPanel(!showMetadataPanel)
             break
+          case 'f':
+            e.preventDefault()
+            setDistractionFreeMode(!distractionFreeMode)
+            break
+          case 'z':
+            if (e.shiftKey) {
+              e.preventDefault()
+              handleRedo()
+            } else {
+              e.preventDefault()
+              handleUndo()
+            }
+            break
           default:
             break
         }
@@ -134,11 +205,35 @@ const EbookCreator = () => {  const [book, setBook] = useState({
     return () => document.removeEventListener('keydown', handleKeyPress)
   }, [book, styles, metadata, showStylePanel, showMetadataPanel, currentPageId])
 
-  const addNewPage = () => {    const newId = Math.max(...book.pages.map(p => p.id)) + 1
+  const addNewPage = () => {
+    // Save current state for undo
+    saveToUndoStack()
+    
+    const newId = Math.max(...book.pages.map(p => p.id)) + 1
+    
+    // Smart chapter title suggestions
+    const chapterTemplates = [
+      `Chapter ${newId}`,
+      `Chapter ${newId}: The Journey Continues`,
+      `Part ${newId}`,
+      `Section ${newId}`,
+      // Genre-specific suggestions
+      ...(metadata.genre?.toLowerCase().includes('fiction') ? [
+        `Chapter ${newId}: A New Adventure`,
+        `Chapter ${newId}: The Plot Thickens`
+      ] : []),
+      ...(metadata.genre?.toLowerCase().includes('non-fiction') ? [
+        `Chapter ${newId}: Key Concepts`,
+        `Section ${newId}: Implementation`
+      ] : [])
+    ]
+    
+    const suggestedTitle = chapterTemplates[Math.floor(Math.random() * Math.min(chapterTemplates.length, 4))]
+    
     const newPage = {
       id: newId,
-      title: `Chapter ${newId}`,
-      content: '<p>New chapter content...</p>',
+      title: suggestedTitle,
+      content: '<p>Begin writing your next chapter here...</p>',
       comments: []
     }
     setBook(prev => ({
@@ -149,6 +244,8 @@ const EbookCreator = () => {  const [book, setBook] = useState({
   }
 
   const duplicateCurrentPage = () => {
+    saveToUndoStack()
+    
     const currentPage = book.pages.find(page => page.id === currentPageId)
     if (currentPage) {
       const newId = Math.max(...book.pages.map(p => p.id)) + 1
@@ -156,7 +253,7 @@ const EbookCreator = () => {  const [book, setBook] = useState({
         ...currentPage,
         id: newId,
         title: `${currentPage.title} (Copy)`,
-        comments: [] // Start with no comments for duplicated page
+        comments: []
       }
       setBook(prev => ({
         ...prev,
@@ -167,6 +264,11 @@ const EbookCreator = () => {  const [book, setBook] = useState({
   }
 
   const updatePage = (pageId, updates) => {
+    // Only save to undo stack for content changes, not every keystroke
+    if (updates.content && updates.content !== book.pages.find(p => p.id === pageId)?.content) {
+      saveToUndoStack()
+    }
+    
     setBook(prev => ({
       ...prev,
       pages: prev.pages.map(page => 
@@ -175,20 +277,63 @@ const EbookCreator = () => {  const [book, setBook] = useState({
     }))
   }
 
+  // Undo/Redo functionality
+  const saveToUndoStack = () => {
+    setUndoStack(prev => {
+      const newStack = [...prev, { book, styles, metadata }]
+      return newStack.slice(-20) // Keep only last 20 states
+    })
+    setRedoStack([]) // Clear redo stack when new action is performed
+  }
+
+  const handleUndo = () => {
+    if (undoStack.length === 0) return
+    
+    const previousState = undoStack[undoStack.length - 1]
+    setRedoStack(prev => [...prev, { book, styles, metadata }])
+    setUndoStack(prev => prev.slice(0, -1))
+    
+    setBook(previousState.book)
+    setStyles(previousState.styles)
+    setMetadata(previousState.metadata)
+  }
+
+  const handleRedo = () => {
+    if (redoStack.length === 0) return
+    
+    const nextState = redoStack[redoStack.length - 1]
+    setUndoStack(prev => [...prev, { book, styles, metadata }])
+    setRedoStack(prev => prev.slice(0, -1))
+    
+    setBook(nextState.book)
+    setStyles(nextState.styles)
+    setMetadata(nextState.metadata)
+  }
+
   const deletePage = (pageId) => {
-    if (book.pages.length <= 1) return // Don't delete the last page
+    // Don't allow deleting the last page
+    if (book.pages.length <= 1) {
+      alert('📚 You need at least one chapter in your book!')
+      return
+    }
+
+    saveToUndoStack()
     
-    setBook(prev => ({
-      ...prev,
-      pages: prev.pages.filter(page => page.id !== pageId)
-    }))
-    
-    // If we deleted the current page, switch to the first available page
-    if (currentPageId === pageId) {
-      const remainingPages = book.pages.filter(page => page.id !== pageId)
-      setCurrentPageId(remainingPages[0]?.id || 1)
+    const pageToDelete = book.pages.find(page => page.id === pageId)
+    if (pageToDelete && window.confirm(`Are you sure you want to delete "${pageToDelete.title}"?`)) {
+      const newPages = book.pages.filter(page => page.id !== pageId)
+      setBook(prev => ({
+        ...prev,
+        pages: newPages
+      }))
+      
+      // If we deleted the current page, switch to the first available page
+      if (currentPageId === pageId) {
+        setCurrentPageId(newPages[0].id)
+      }
     }
   }
+
   const updateBookInfo = (field, value) => {
     setBook(prev => ({
       ...prev,
@@ -217,8 +362,19 @@ const EbookCreator = () => {  const [book, setBook] = useState({
   }
   const handleSaveProject = () => {
     try {
-      saveProject(book, styles, metadata)
-      alert('Project saved successfully!')
+      // Smart export naming with timestamp
+      const timestamp = new Date().toISOString().split('T')[0]
+      const version = localStorage.getItem(`${book.title}_version`) || '1.0'
+      const smartName = `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}_v${version}_${timestamp}`
+      
+      saveProject(book, styles, metadata, smartName)
+      
+      // Increment version for next save
+      const nextVersion = parseFloat(version) + 0.1
+      localStorage.setItem(`${book.title}_version`, nextVersion.toFixed(1))
+      
+      setAutoSaveStatus('Project saved!')
+      setTimeout(() => setAutoSaveStatus(''), 2000)
     } catch (error) {
       alert('Failed to save project: ' + error.message)
     }
@@ -227,19 +383,23 @@ const EbookCreator = () => {  const [book, setBook] = useState({
   const handleExportEPUB = async () => {
     try {
       setIsExporting(true)
-        // Validate required fields
+      
+      // Enhanced validation with better messages
       if (!book.title || book.title.trim() === '' || book.title === 'My Book' || book.title === 'Untitled Book') {
-        alert('📚 Please set a custom book title before exporting.\n\nClick on the book title at the top to edit it.')
+        setAutoSaveStatus('📚 Please set a custom book title first')
+        setTimeout(() => setAutoSaveStatus(''), 3000)
         return
       }
       
       if (!book.author || book.author.trim() === '' || book.author === 'Author Name') {
-        alert('✍️ Please set an author name before exporting.\n\nClick on the author name at the top to edit it.')
+        setAutoSaveStatus('✍️ Please set an author name first')
+        setTimeout(() => setAutoSaveStatus(''), 3000)
         return
       }
 
       if (!book.pages || book.pages.length === 0) {
-        alert('📝 Please add at least one chapter with content before exporting.')
+        setAutoSaveStatus('📝 Add at least one chapter first')
+        setTimeout(() => setAutoSaveStatus(''), 3000)
         return
       }
 
@@ -249,9 +409,18 @@ const EbookCreator = () => {  const [book, setBook] = useState({
       )
       
       if (!hasContent) {
-        alert('📄 Please add some content to your chapters before exporting.\n\nYour book needs text content to create a valid EPUB.')
+        setAutoSaveStatus('📄 Add some content to your chapters first')
+        setTimeout(() => setAutoSaveStatus(''), 3000)
         return
       }
+
+      // Show progress updates
+      setAutoSaveStatus('📚 Preparing your book...')
+      
+      // Smart export naming
+      const timestamp = new Date().toISOString().split('T')[0]
+      const sanitizedTitle = book.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_')
+      const exportName = `${sanitizedTitle}_${timestamp}`
 
       // Merge book data with metadata for export
       const exportData = {
@@ -259,43 +428,66 @@ const EbookCreator = () => {  const [book, setBook] = useState({
         title: metadata.title || book.title,
         author: metadata.author || book.author,
         description: metadata.description || '',
-        genre: metadata.genre || '',        language: metadata.language || 'en',
+        genre: metadata.genre || '',
+        language: metadata.language || 'en',
         publisher: metadata.publisher || '',
         publishDate: metadata.publishDate || new Date().toISOString().split('T')[0],
         isbn: metadata.isbn || '',
         series: metadata.series || '',
         copyright: metadata.copyright || `Copyright © ${new Date().getFullYear()} ${metadata.author || book.author}`,
-        coverImage: metadata.coverImage
+        coverImage: metadata.coverImage,
+        exportName: exportName
       }
 
+      setAutoSaveStatus('🔧 Building chapters...')
+      await new Promise(resolve => setTimeout(resolve, 500)) // Brief pause for UX
+      
+      setAutoSaveStatus('🎨 Applying styles...')
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      setAutoSaveStatus('📖 Creating EPUB...')
       await generateEPUB(exportData, styles)
-      alert('🎉 EPUB 3.0 exported successfully!\n\nYour ebook is now ready for publishing on Amazon KDP, Apple Books, and other platforms.')
+      
+      setAutoSaveStatus('🎉 Export complete!')
+      setTimeout(() => setAutoSaveStatus(''), 3000)
+      
+      // Show celebration
+      setCelebrationMessage(`🎉 Your book "${book.title}" has been exported successfully!`)
+      
     } catch (error) {
       console.error('Export failed:', error)
       
       let errorMessage = 'Export failed. Please try again.'
       
-      // Provide more specific error messages
       if (error.message.includes('Missing required book data')) {
-        errorMessage = '❌ Missing required information. Please ensure your book has a title, author, and at least one chapter with content.'
+        errorMessage = '❌ Missing required information. Please check your book details.'
       } else if (error.message.includes('JSZip')) {
-        errorMessage = '🔧 There was a technical issue creating the EPUB file. Please refresh the page and try again.'
-      } else if (error.message.includes('network')) {
-        errorMessage = '🌐 Network error. Please check your internet connection and try again.'
+        errorMessage = '❌ Export library error. Please refresh and try again.'
       }
       
-      alert(`${errorMessage}\n\nError details: ${error.message}`)
+      setAutoSaveStatus(errorMessage)
+      setTimeout(() => setAutoSaveStatus(''), 4000)
     } finally {
       setIsExporting(false)
     }
   }
 
-  const getWordCount = () => {
+  // Enhanced word count and reading time functions
+  const getTotalWordCount = () => {
     return book.pages.reduce((total, page) => {
-      const textContent = page.content.replace(/<[^>]*>/g, ' ').trim()
-      const wordCount = textContent.split(/\s+/).filter(word => word.length > 0).length
-      return total + wordCount
+      return total + getWordCount(page.content)
     }, 0)
+  }
+
+  const getTotalReadingTime = () => {
+    return book.pages.reduce((total, page) => {
+      return total + calculateReadingTime(page.content)
+    }, 0)
+  }
+
+  const getPageReadingTime = (pageId) => {
+    const page = book.pages.find(p => p.id === pageId)
+    return page ? calculateReadingTime(page.content) : 0
   }
 
   const currentPage = book.pages.find(page => page.id === currentPageId) || book.pages[0]
@@ -372,6 +564,7 @@ const EbookCreator = () => {  const [book, setBook] = useState({
               <CheckCircle size={18} />
               <span>Check</span>
             </button>
+            
             <button 
               onClick={() => setShowStylePanel(!showStylePanel)}
               className="action-btn"
@@ -379,7 +572,9 @@ const EbookCreator = () => {  const [book, setBook] = useState({
             >
               <Settings size={18} />
               <span>Style</span>
-            </button>            <button 
+            </button>
+            
+            <button 
               onClick={() => {
                 setShowPreview(true)
                 setShowMobileMenu(false)
@@ -399,46 +594,57 @@ const EbookCreator = () => {  const [book, setBook] = useState({
               className={`action-btn export-btn ${isExporting ? 'loading' : ''}`}
               title="Export EPUB 3.0 (Ctrl+E)"
               disabled={isExporting}
-            >              {!isExporting && <Download size={18} />}
+            >
+              {!isExporting && <Download size={18} />}
               <span>{isExporting ? 'Exporting...' : 'Export EPUB'}</span>
             </button>
           </div>
-          
-          <div className="header-stats">
-            {autoSaveStatus && <span className="auto-save-status">{autoSaveStatus}</span>}
-            <span className="word-count">{getWordCount()} words</span>
-          </div>
-          
-          <KeyboardShortcuts />
         </div>
       </header>
 
-      <div className="main-content">
-        <aside className="sidebar">
-          <div className="sidebar-section">
-            <div className="sidebar-header">
-              <h3>Table of Contents</h3>
-              <button onClick={addNewPage} className="add-page-btn" title="Add New Chapter">
-                <Plus size={16} />
-              </button>
+      <div className={`main-content ${distractionFreeMode ? 'distraction-free' : ''}`}>
+        {!distractionFreeMode && (
+          <aside className="sidebar">
+            <div className="sidebar-section">
+              <div className="sidebar-header">
+                <h3>Table of Contents</h3>
+                <button onClick={addNewPage} className="add-page-btn" title="Add New Chapter">
+                  <Plus size={16} />
+                </button>
+              </div>
+              <TableOfContents
+                pages={book.pages}
+                currentPageId={currentPageId}
+                onPageSelect={setCurrentPageId}
+                onPageUpdate={updatePage}
+                onPageDelete={deletePage}
+                getReadingTime={getPageReadingTime}
+              />
             </div>
-            <TableOfContents
-              pages={book.pages}
-              currentPageId={currentPageId}
-              onPageSelect={setCurrentPageId}
-              onPageUpdate={updatePage}
-              onPageDelete={deletePage}
-            />
-          </div>
-        </aside>
+          </aside>
+        )}
 
         <main className="editor-area">
           <PageEditor
             page={currentPage}
             onUpdate={(updates) => updatePage(currentPage.id, updates)}
             styles={styles}
+            distractionFreeMode={distractionFreeMode}
+            onToggleDistractionFree={() => setDistractionFreeMode(!distractionFreeMode)}
+            ref={currentEditorRef}
           />
-        </main>        {showStylePanel && (
+          
+          {/* Quick Actions Bar */}
+          <QuickActionsBar
+            editor={currentEditorRef.current}
+            onAddChapter={addNewPage}
+            onSave={handleSaveProject}
+            onExport={handleExportEPUB}
+            currentPage={currentPage}
+          />
+        </main>
+
+        {!distractionFreeMode && showStylePanel && (
           <aside className="style-panel">
             <StylePanel
               styles={styles}
@@ -446,7 +652,9 @@ const EbookCreator = () => {  const [book, setBook] = useState({
               onClose={() => setShowStylePanel(false)}
             />
           </aside>
-        )}{showMetadataPanel && (
+        )}
+
+        {!distractionFreeMode && showMetadataPanel && (
           <aside className="metadata-panel-container">
             <MetadataPanel
               metadata={metadata}
@@ -456,7 +664,7 @@ const EbookCreator = () => {  const [book, setBook] = useState({
           </aside>
         )}
 
-        {showValidationPanel && (
+        {!distractionFreeMode && showValidationPanel && (
           <aside className="validation-panel-container">
             <ValidationPanel
               book={book}
@@ -465,12 +673,57 @@ const EbookCreator = () => {  const [book, setBook] = useState({
             />
           </aside>
         )}
-      </div>      {showPreview && (
+      </div>
+
+      {/* Modals and Overlays */}
+      {showPreview && (
         <PreviewModal
           book={book}
           styles={styles}
           metadata={metadata}
           onClose={() => setShowPreview(false)}
+        />
+      )}
+
+      {/* Footer with stats and utilities */}
+      {!distractionFreeMode && (
+        <footer className="app-footer">
+          <div className="footer-left">
+            <KeyboardShortcuts />
+            {autoSaveStatus && <span className="auto-save-status">{autoSaveStatus}</span>}
+          </div>
+          
+          <div className="footer-stats">
+            <span className="word-count" title={`Average ${Math.round(getTotalWordCount() / book.pages.length)} words per chapter`}>
+              <Clock size={12} />
+              {getTotalWordCount().toLocaleString()} words
+            </span>
+            <span className="reading-time" title={`${book.pages.length} chapters • ${getTotalWordCount() >= 50000 ? '📚 Novel length!' : getTotalWordCount() >= 10000 ? '📖 Novella territory!' : getTotalWordCount() >= 1000 ? '📝 Strong progress!' : '🌱 Growing!'}`}>
+              📖 {formatReadingTime(getTotalReadingTime())}
+            </span>
+            {getWritingStreak().currentStreak > 0 && (
+              <span className="writing-streak" title={`You've written for ${getWritingStreak().currentStreak} consecutive days!`}>
+                🔥 {getWritingStreak().currentStreak} day streak
+              </span>
+            )}
+          </div>
+        </footer>
+      )}
+
+      {/* Modals and Overlays */}
+      {showPreview && (
+        <PreviewModal
+          book={book}
+          styles={styles}
+          metadata={metadata}
+          onClose={() => setShowPreview(false)}
+        />
+      )}
+
+      {celebrationMessage && (
+        <CelebrationToast
+          message={celebrationMessage}
+          onClose={() => setCelebrationMessage('')}
         />
       )}
     </div>

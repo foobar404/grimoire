@@ -1,4 +1,4 @@
-import { X, ChevronLeft, ChevronRight, Smartphone, Tablet, Monitor, BookOpen } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Smartphone, Tablet, Monitor, BookOpen, Eye } from 'lucide-react'
 import { useState } from 'react'
 import './PreviewModal.css'
 
@@ -34,7 +34,10 @@ const PreviewModal = ({ book, styles, metadata, onClose }) => {
       <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
         <div className="preview-header">
           <div className="preview-book-info">
-            <h2>{book.title}</h2>
+            <div className="preview-title">
+              <Eye size={18} />
+              <h2>{book.title}</h2>
+            </div>
             <p>by {book.author}</p>
             {metadata?.description && (
               <p className="book-description">{metadata.description}</p>

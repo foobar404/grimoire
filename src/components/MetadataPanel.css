@@ -1,7 +1,7 @@
 .metadata-panel {
   width: 350px;
-  background: white;
-  border-left: 1px solid #e2e8f0;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -11,41 +11,43 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e2e8f0;
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-hover);
 }
 
 .metadata-panel-header h3 {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1e293b;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
 }
 
 .close-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: transparent;
-  border-radius: 0.375rem;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--border-radius-sm);
   cursor: pointer;
-  transition: all 0.2s;
-  color: #64748b;
+  transition: all var(--transition-duration);
+  color: var(--color-close-btn);
 }
 
 .close-btn:hover {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--color-surface-active);
+  color: var(--color-close-btn-hover);
+  border-color: var(--color-border-hover);
 }
 
 .metadata-panel-content {
   flex: 1;
-  padding: 1.5rem;
+  padding: var(--spacing-lg);
   overflow-y: auto;
 }
 

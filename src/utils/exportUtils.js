@@ -295,7 +295,7 @@ export const exportToText = (book, metadata) => {
 }
 
 // Save project as JSON
-export const saveProject = (book, styles, metadata) => {
+export const saveProject = (book, styles, metadata, customName = null) => {
   const project = {
     version: '1.0',
     book,
@@ -308,7 +308,11 @@ export const saveProject = (book, styles, metadata) => {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${book.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_project.json`
+  
+  // Use custom name if provided, otherwise generate smart name
+  const fileName = customName || `${book.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_project.json`
+  a.download = fileName
+  
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)

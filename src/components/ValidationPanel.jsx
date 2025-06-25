@@ -1,4 +1,4 @@
-import { CheckCircle, XCircle, AlertCircle, Info } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, Info, X, ShieldCheck } from 'lucide-react'
 import './ValidationPanel.css'
 
 const ValidationPanel = ({ book, metadata, onClose }) => {  const checks = [
@@ -150,8 +150,13 @@ const ValidationPanel = ({ book, metadata, onClose }) => {  const checks = [
   return (
     <div className="validation-panel">
       <div className="validation-header">
-        <h3>Publishing Readiness Check</h3>
-        <button onClick={onClose} className="close-btn">×</button>
+        <h3>
+          <ShieldCheck size={18} />
+          Publishing Readiness Check
+        </h3>
+        <button onClick={onClose} className="close-btn">
+          <X size={18} />
+        </button>
       </div>
 
       <div className="validation-content">
