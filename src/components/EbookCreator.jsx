@@ -10,7 +10,6 @@ import KeyboardShortcuts from './KeyboardShortcuts'
 import QuickActionsBar from './QuickActionsBar'
 import WritingInsights from './WritingInsights'
 import CelebrationToast from './CelebrationToast'
-import WritingTimer from './WritingTimer'
 import ThemeSwitcher from './ThemeSwitcher'
 import { generateEPUB } from '../utils/epubGenerator'
 import { saveProject, loadProject } from '../utils/exportUtils'
@@ -726,10 +725,6 @@ const EbookCreator = () => {  const [book, setBook] = useState({
             <KeyboardShortcuts />
             {autoSaveStatus && <span className="auto-save-status">{autoSaveStatus}</span>}
           </div>
-
-          <div className="footer-center">
-            <WritingTimer />
-          </div>
           
           <div className="footer-right">
             <div className="footer-stats">
@@ -752,15 +747,6 @@ const EbookCreator = () => {  const [book, setBook] = useState({
       )}
 
       {/* Modals and Overlays */}
-      {showPreview && (
-        <PreviewModal
-          book={book}
-          styles={styles}
-          metadata={metadata}
-          onClose={() => setShowPreview(false)}
-        />
-      )}
-
       {celebrationMessage && (
         <CelebrationToast
           message={celebrationMessage}

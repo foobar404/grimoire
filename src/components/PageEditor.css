@@ -376,3 +376,77 @@
   outline: none !important;
   box-shadow: none !important;
 }
+
+/* Chapter Stats Footer */
+.editor-stats-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-xl);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+  transition: opacity var(--transition-duration);
+  flex-shrink: 0;
+}
+
+.editor-stats-footer:hover {
+  opacity: 0.9;
+}
+
+.stats-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-xs);
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+}
+
+.stats-value {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  opacity: 0.8;
+  font-size: var(--font-size-xs);
+}
+
+.stats-label {
+  font-size: calc(var(--font-size-xs) - 1px);
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  opacity: 0.7;
+}
+
+/* Hide stats footer in distraction-free mode */
+.page-editor.distraction-free .editor-stats-footer {
+  display: none;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .editor-stats-footer {
+    gap: var(--spacing-md);
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+  
+  .stats-item {
+    gap: 2px;
+  }
+  
+  .stats-label {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .editor-stats-footer {
+    gap: var(--spacing-sm);
+    justify-content: space-around;
+    padding: var(--spacing-xs);
+  }
+  
+  .stats-item:nth-child(n+3) {
+    display: none;
+  }
+}

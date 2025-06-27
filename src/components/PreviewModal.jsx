@@ -1,17 +1,17 @@
-import { X, ChevronLeft, ChevronRight, Smartphone, Tablet, Monitor, BookOpen, Eye } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Menu, Settings, Smartphone, Tablet, Monitor } from 'lucide-react'
 import { useState } from 'react'
 import './PreviewModal.css'
 
 const PreviewModal = ({ book, styles, metadata, onClose }) => {
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
-  const [deviceType, setDeviceType] = useState('desktop')
+  const [showToc, setShowToc] = useState(false)
+  const [devicePreset, setDevicePreset] = useState('tablet') // phone, tablet, desktop
   const currentPage = book.pages[currentPageIndex]
 
-  const deviceSizes = {
-    phone: { width: '375px', height: '667px', name: 'Phone', icon: Smartphone },
-    tablet: { width: '768px', height: '1024px', name: 'Tablet', icon: Tablet },
-    desktop: { width: '100%', height: 'auto', name: 'Desktop', icon: Monitor },
-    ereader: { width: '600px', height: '800px', name: 'E-Reader', icon: BookOpen }
+  const devicePresets = {
+    phone: { width: '375px', height: '812px', name: 'Phone' },
+    tablet: { width: '768px', height: '1024px', name: 'Tablet' },
+    desktop: { width: '100%', height: '100%', name: 'Desktop' }
   }
 
   const nextPage = () => {
@@ -28,115 +28,138 @@ const PreviewModal = ({ book, styles, metadata, onClose }) => {
 
   const goToPage = (index) => {
     setCurrentPageIndex(index)
+    setShowToc(false)
   }
+
+  const toggleToc = () => {
+    setShowToc(!showToc)
+  }
+
+  const currentDevice = devicePresets[devicePreset]
+  
   return (
     <div className="preview-modal-overlay" onClick={onClose}>
-      <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
+      <div 
+        className={`preview-modal device-${devicePreset}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header Bar */}
         <div className="preview-header">
           <div className="preview-book-info">
-            <div className="preview-title">
-              <Eye size={18} />
-              <h2>{book.title}</h2>
-            </div>
+            <h2>{book.title}</h2>
             <p>by {book.author}</p>
-            {metadata?.description && (
-              <p className="book-description">{metadata.description}</p>
-            )}
           </div>
           
-          <div className="device-selector">
-            {Object.entries(deviceSizes).map(([key, device]) => {
-              const IconComponent = device.icon
-              return (
-                <button
-                  key={key}
-                  onClick={() => setDeviceType(key)}
-                  className={`device-btn ${deviceType === key ? 'active' : ''}`}
-                  title={`Preview on ${device.name}`}
-                >
-                  <IconComponent size={16} />
-                  <span>{device.name}</span>
-                </button>
-              )
-            })}
+          <div className="preview-controls">
+            <div className="device-selector">
+              <button
+                onClick={() => setDevicePreset('phone')}
+                className={`device-btn ${devicePreset === 'phone' ? 'active' : ''}`}
+                title="Phone view"
+              >
+                <Smartphone size={12} />
+              </button>
+              <button
+                onClick={() => setDevicePreset('tablet')}
+                className={`device-btn ${devicePreset === 'tablet' ? 'active' : ''}`}
+                title="Tablet view"
+              >
+                <Tablet size={12} />
+              </button>
+              <button
+                onClick={() => setDevicePreset('desktop')}
+                className={`device-btn ${devicePreset === 'desktop' ? 'active' : ''}`}
+                title="Desktop view"
+              >
+                <Monitor size={12} />
+              </button>
+            </div>
+            
+            <button onClick={toggleToc} className="control-btn" title="Contents">
+              <Menu size={16} />
+            </button>
+            
+            <button onClick={onClose} className="control-btn close-btn" title="Close">
+              <X size={16} />
+            </button>
           </div>
-          
-          <button onClick={onClose} className="preview-close-btn">
-            <X size={24} />
-          </button>
         </div>
 
-        <div className="preview-content">
-          <div className="preview-sidebar">
-            <h3>Table of Contents</h3>
-            <div className="preview-toc">
-              {book.pages.map((page, index) => (
-                <button
-                  key={page.id}
-                  onClick={() => goToPage(index)}
-                  className={`preview-toc-item ${index === currentPageIndex ? 'active' : ''}`}
-                >
-                  <span className="toc-number">{index + 1}.</span>
-                  <span className="toc-title">{page.title}</span>
+        {/* Table of Contents Overlay */}
+        {showToc && (
+          <div className="toc-overlay" onClick={() => setShowToc(false)}>
+            <div className="toc-panel" onClick={(e) => e.stopPropagation()}>
+              <div className="preview-toc-header">
+                <h3>Table of Contents</h3>
+                <button onClick={() => setShowToc(false)} className="toc-close">
+                  <X size={18} />
                 </button>
-              ))}
-            </div>
-          </div>          <div className="preview-main">
-            <div className="preview-navigation">
-              <button
-                onClick={prevPage}
-                disabled={currentPageIndex === 0}
-                className="nav-btn"
-              >
-                <ChevronLeft size={20} />
-                Previous
-              </button>
-              
-              <span className="page-indicator">
-                {currentPageIndex + 1} of {book.pages.length}
-              </span>
-              
-              <button
-                onClick={nextPage}
-                disabled={currentPageIndex === book.pages.length - 1}
-                className="nav-btn"
-              >
-                Next
-                <ChevronRight size={20} />
-              </button>
-            </div>
-
-            <div className="preview-viewport">
-              <div 
-                className={`preview-device ${deviceType}`}
-                style={{
-                  width: deviceSizes[deviceType].width,
-                  height: deviceSizes[deviceType].height,
-                  maxWidth: deviceType === 'desktop' ? '100%' : deviceSizes[deviceType].width
-                }}
-              >
-                <div className="preview-page">
-                  <div
-                    className="preview-page-content"
-                    style={{
-                      fontFamily: styles.fontFamily === 'serif' ? 'Georgia, serif' : 
-                                 styles.fontFamily === 'sans' ? 'Arial, sans-serif' : 
-                                 'Courier, monospace',
-                      fontSize: styles.fontSize,
-                      lineHeight: styles.lineHeight,
-                      textAlign: styles.textAlign,
-                      color: styles.color,
-                      backgroundColor: styles.backgroundColor,
-                    }}
-                  >
-                    <h1 className="preview-page-title">{currentPage.title}</h1>
-                    <div 
-                      className="preview-page-text"
-                      dangerouslySetInnerHTML={{ __html: currentPage.content }}
-                    />
-                  </div>
-                </div>
               </div>
+              <div className="toc-list">
+                {book.pages.map((page, index) => (
+                  <button
+                    key={page.id}
+                    onClick={() => goToPage(index)}
+                    className={`toc-item ${index === currentPageIndex ? 'active' : ''}`}
+                  >
+                    <span className="toc-number">{index + 1}</span>
+                    <span className="toc-title">{page.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Reading Area */}
+        <div className="preview-reader">
+          {/* Navigation Areas */}
+          <button 
+            onClick={prevPage}
+            disabled={currentPageIndex === 0}
+            className="page-nav page-nav-left"
+            aria-label="Previous page"
+          />
+          
+          <button 
+            onClick={nextPage}
+            disabled={currentPageIndex === book.pages.length - 1}
+            className="page-nav page-nav-right"
+            aria-label="Next page"
+          />
+
+          {/* Page Content */}
+          <div className="reader-content">
+            <div className="reader-page">
+              <h1 className="chapter-title">{currentPage.title}</h1>
+              <div 
+                className="chapter-content"
+                style={{
+                  fontFamily: styles.fontFamily === 'serif' ? 'Charter, Georgia, serif' : 
+                             styles.fontFamily === 'sans' ? 'system-ui, -apple-system, sans-serif' : 
+                             'ui-monospace, monospace',
+                  fontSize: styles.fontSize,
+                  lineHeight: styles.lineHeight,
+                  textAlign: styles.textAlign,
+                }}
+                dangerouslySetInnerHTML={{ __html: currentPage.content }}
+              />
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="reading-progress">
+            <div className="progress-info">
+              <span>{currentPageIndex + 1} of {book.pages.length}</span>
+              <span>{Math.round(((currentPageIndex + 1) / book.pages.length) * 100)}%</span>
+            </div>
+            <div className="progress-bar">
+              <div 
+                className="progress-fill"
+                style={{
+                  width: `${((currentPageIndex + 1) / book.pages.length) * 100}%`
+                }}
+              />
             </div>
           </div>
         </div>

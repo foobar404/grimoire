@@ -9,6 +9,7 @@ import Superscript from '@tiptap/extension-superscript'
 import { Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Quote, Undo, Redo, Image as ImageIcon, Subscript as SubIcon, Superscript as SuperIcon, FileText, Code, Focus, X, Upload } from 'lucide-react'
 import { useEffect, useRef, useCallback, useState, forwardRef, useImperativeHandle } from 'react'
 import Comments from './Comments'
+import { getWordCount } from '../utils/readingTimeUtils'
 import './PageEditor.css'
 
 const PageEditor = forwardRef(({ page, onUpdate, styles, distractionFreeMode = false, onToggleDistractionFree }, ref) => {
@@ -17,6 +18,22 @@ const PageEditor = forwardRef(({ page, onUpdate, styles, distractionFreeMode = f
   const [showImportModal, setShowImportModal] = useState(false)
   const [importText, setImportText] = useState('')
   const [importFormat, setImportFormat] = useState('markdown')
+  
+  // Helper function to count paragraphs accurately
+  const getParagraphCount = (content) => {
+    if (!content) return 0;
+    // Remove HTML tags and normalize whitespace
+    const textContent = content.replace(/<[^>]*>/g, '\n').replace(/\s+/g, ' ').trim();
+    if (!textContent) return 0;
+    
+    // Split by paragraph breaks (double newlines or </p> tags)
+    const paragraphs = content
+      .split(/<\/p>|<br\s*\/?>\s*<br\s*\/?>|\n\s*\n/)
+      .map(p => p.replace(/<[^>]*>/g, '').trim())
+      .filter(p => p.length > 0);
+    
+    return Math.max(1, paragraphs.length);
+  };
   
   // Debounced update function to reduce typing lag
   const debouncedUpdate = useCallback((updates) => {
@@ -402,6 +419,28 @@ const PageEditor = forwardRef(({ page, onUpdate, styles, distractionFreeMode = f
       </div>      <div className="editor-content">
         <EditorContent editor={editor} />
       </div>
+
+      {/* Chapter Stats Footer */}
+      {!distractionFreeMode && (
+        <div className="editor-stats-footer">
+          <div className="stats-item">
+            <span className="stats-value">{getWordCount(page.content || '')}</span>
+            <span className="stats-label">words</span>
+          </div>
+          <div className="stats-item">
+            <span className="stats-value">{Math.ceil(getWordCount(page.content || '') / 250)}</span>
+            <span className="stats-label">min read</span>
+          </div>
+          <div className="stats-item">
+            <span className="stats-value">{getParagraphCount(page.content || '')}</span>
+            <span className="stats-label">paragraphs</span>
+          </div>
+          <div className="stats-item">
+            <span className="stats-value">{Math.ceil(getWordCount(page.content || '') / 250)}</span>
+            <span className="stats-label">pages</span>
+          </div>
+        </div>
+      )}
       
       {/* Import Modal */}
       {showImportModal && (

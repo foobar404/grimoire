@@ -22,7 +22,7 @@ const KeyboardShortcuts = () => {
   return (
     <>
       <button 
-        className="keyboard-shortcuts-btn"
+        className="theme-toggle-btn"
         onClick={() => setShowModal(true)}
         title="Keyboard Shortcuts"
       >
